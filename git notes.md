@@ -9,7 +9,8 @@ Revision notes, 23 Oct 2026. Git saves every version of your project on your lap
 3. [Daily commands and branches](#3-daily-commands-and-branches)
 4. [Undo commands](#4-undo-commands)
 5. [Rules and common errors](#5-rules-and-common-errors)
-6. [Practice checklist](#6-practice-checklist)
+6. [Feature branch and pull request flow](#6-feature-branch-and-pull-request-flow)
+7. [Practice checklist](#7-practice-checklist)
 
 ---
 
@@ -199,6 +200,39 @@ git push
 
 Branch names cannot contain spaces. Use hyphens, like `notes-origin-and-main`. Spaces are fine only inside a quoted commit message: `git commit -m "Add notes about origin"`.
 
+### Remote vs upstream (why a new branch needs `-u`)
+
+Adding the address is not enough for a new branch. Two separate things are involved:
+
+| Thing | Question it answers | Set by |
+| --- | --- | --- |
+| Remote (`origin`) | Which GitHub repo? | `git remote add origin <url>` (once per repo) |
+| Upstream (tracking) | Which branch there does this local branch pair with? | `git push -u origin <branch>` (once per branch) |
+
+A new branch exists only on your laptop. GitHub has no branch of that name, so plain `git push` fails with `The current branch ... has no upstream branch`.
+
+| Command | Result |
+| --- | --- |
+| `git push -u origin my-branch` | Creates the branch on GitHub and saves the pairing. Later `git push` works. |
+| `git push origin my-branch` | Creates the branch but does not save the pairing. The next plain `git push` fails again. |
+| `git config --global push.autoSetupRemote true` | Set once. Then plain `git push` on a new branch sets the pairing automatically. |
+
+`main` worked with plain `git push` only because the first `git push -u origin main` saved its pairing.
+
+### Reading `git diff` and escaping the pager
+
+| What you see | Meaning |
+| --- | --- |
+| Red line starting with `-` | Line in the old file, removed |
+| Green line starting with `+` | Line in the new file, added |
+| Lines starting with a space | Unchanged context |
+| `@@ -142,4 +278,4 @@` | Location: old lines 142 to 145, new lines 278 to 281 |
+| `(END)` | You are in a pager (a viewer for long output) |
+
+In the pager: `q` quits, Space moves down a page, arrow keys scroll. Do not type `exit`, that closes the terminal.
+
+To print without the pager: `git --no-pager diff`. To turn it off for good: `git config --global core.pager cat`.
+
 ### Moving around the terminal
 
 | Command | Meaning |
@@ -265,10 +299,64 @@ You sealed a letter and put it in the outbox.
 | `Repository not found` | GitHub repo missing or wrong URL | Create it on GitHub, check `git remote -v` |
 | `nothing to commit, working tree clean` | No changes since the last commit | Nothing wrong; edit a file |
 | `fatal: only one reference expected` | Spaces in a branch name | Use hyphens: `git switch -c my-branch` |
+| `The current branch ... has no upstream branch` | New branch is not paired with a GitHub branch yet | `git push -u origin <branch>` (once per branch) |
+| `nothing to commit` right after pasting a file | File not saved, or pasted into a different file | Save with Ctrl+S, then run `git status` |
+| Stuck at `(END)` | Git opened a pager | Press `q` |
+| `src refspec main does not match any` | No branch called `main` exists locally | `git branch` to check, then `git branch -M main` |
 
 ---
 
-## 6. Practice checklist
+## 6. Feature branch and pull request flow
+
+This is how teams work: nobody commits straight to `main`. Each change gets its own branch, a pull request (PR), a review, and a merge.
+
+```
+main    ●─────────────────────────●  (merged)
+         \                       /
+feature   ●──●──●──  push  ──  Pull Request
+```
+
+### Branch names
+
+Short, lowercase, no spaces, with a prefix:
+
+| Prefix | Use | Example |
+| --- | --- | --- |
+| `feature/` | New thing | `feature/two-sum` |
+| `fix/` | Bug fix | `fix/readme-typo` |
+| `docs/` | Documentation | `docs/update-git-notes` |
+
+### Steps
+
+| Step | What to do | Command |
+| --- | --- | --- |
+| 1 | Start from an up-to-date `main` | `git switch main` then `git pull` |
+| 2 | Create the branch | `git switch -c docs/update-git-notes` |
+| 3 | Do the work, then review your own change | `git status` then `git diff` |
+| 4 | Save it | `git add README.md` then `git commit -m "Restructure notes"` |
+| 5 | Push the branch (first time needs `-u`) | `git push -u origin docs/update-git-notes` |
+| 6 | On github.com: click **Compare & pull request**, write a title and description, **Create pull request** | (browser) |
+| 7 | Review the **Files changed** tab, then **Merge pull request**, **Confirm merge**, **Delete branch** | (browser) |
+| 8 | Sync your laptop | `git switch main` then `git pull` |
+| 9 | Delete the local branch (only works if merged) | `git branch -d docs/update-git-notes` |
+
+To rename the branch you are on: `git branch -m new-name`.
+
+One-line loop:
+
+```
+switch main -> pull -> switch -c feature/xyz -> work -> add -> commit -> push -u -> PR -> merge -> switch main -> pull -> branch -d
+```
+
+### Why teams do this
+
+- `main` always stays working, because only reviewed PRs reach it.
+- Each PR is one small, reviewable change.
+- If something breaks, one PR can be undone cleanly.
+
+---
+
+## 7. Practice checklist
 
 Tick these off as you do them. Doing each command yourself is what makes it stick.
 
@@ -279,3 +367,5 @@ Tick these off as you do them. Doing each command yourself is what makes it stic
 - [ ] Add a `.gitignore` and a README, then push
 - [ ] Practice one undo of each kind: `restore`, `restore --staged`, `commit --amend`, `reset --soft HEAD~1`
 - [ ] Cause a merge conflict on purpose and fix it
+- [ ] Do one full feature-branch cycle: branch, commit, `push -u`, open a PR, merge it, pull `main`, delete the branch
+- [ ] Turn on `git config --global push.autoSetupRemote true` once the long push form feels natural
